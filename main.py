@@ -14,12 +14,12 @@ STORAGE_DIR = os.environ.get("LocalAppData")+"\\Fishtest\\"
 WORKER_DIR = STORAGE_DIR+"fishtest-master\\worker\\"
 CONFIG_PATH = STORAGE_DIR+"config.cfg"
 MSYS_DIR = STORAGE_DIR+"msys64/"
-startupinfo = subprocess.STARTUPINFO()
-startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+# So no window shows when packaged in pyinstaller
+STARTUPINFO = subprocess.STARTUPINFO()
+STARTUPINFO.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-for path in (STORAGE_DIR,):
-    if not os.path.isdir(path):
-        os.mkdir(path)
+if not os.path.isdir(STORAGE_DIR):
+    os.mkdir(STORAGE_DIR)
 if not os.path.isfile(CONFIG_PATH):
     with open(CONFIG_PATH, "w") as f:
         f.write(
@@ -69,7 +69,7 @@ def download_chocolatey():
             stderr=subprocess.PIPE,
             bufsize=0,
             text=True,
-            startupinfo=startupinfo)
+            startupinfo=STARTUPINFO)
     finally:
         os.chdir(olddir)
 
@@ -92,7 +92,7 @@ def download_msys2():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             bufsize=0,
-            startupinfo=startupinfo)
+            startupinfo=STARTUPINFO)
     finally:
         os.chdir(olddir)    
 
@@ -113,7 +113,7 @@ def install_packages():
             stderr=subprocess.PIPE,
             bufsize=0,
             text=True,
-            startupinfo=startupinfo)
+            startupinfo=STARTUPINFO)
     finally:
         config["Settings"]["msys_path"] = MSYS_DIR
         save_config()
@@ -147,7 +147,7 @@ def run_fishtest():
         stdin=subprocess.PIPE,
         text=True,
         bufsize=0,
-        startupinfo=startupinfo)
+        startupinfo=STARTUPINFO)
 
 class MonitorThread(threading.Thread):
     def __init__(self, text_ctrl, st, callback):
@@ -179,7 +179,6 @@ class MainFrame(wx.Frame):
         self.monitor_thread = None
         self.monitor_thread_error = None
         self.proc = None
-        self.running = False
         self.padding = wx.EXPAND|wx.ALL
 
         self.panel = wx.Panel(self)
@@ -310,7 +309,6 @@ class MainFrame(wx.Frame):
             self.log.write("\n")
         self.start_button.Disable()
         self.stop_button.Enable()
-        self.running = True
         
         config["Settings"]["msys_path"] = self.msys_input_field.GetValue()
         config["Fishtest"]["username"] = self.username_input.GetValue()
@@ -327,7 +325,6 @@ class MainFrame(wx.Frame):
         self.monitor_thread = MonitorThread(self.log, self.proc.stdout, self.stop_fishtest)
     
     def stop_fishtest(self, event):
-        self.running = False
         self.monitor_thread.do_run = False
         self.proc.kill()
         self.stop_button.Disable()
