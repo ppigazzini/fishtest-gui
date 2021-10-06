@@ -1,4 +1,5 @@
 import wx
+import wx.adv
 import os
 import configparser
 import multiprocessing
@@ -184,6 +185,7 @@ class MainFrame(wx.Frame):
         self.panel = wx.Panel(self)
         self.vbox = wx.BoxSizer(wx.VERTICAL)
 
+        self.create_help()
         self.create_msys_settings()
         self.create_fishtest_settings()
         self.create_log()
@@ -191,6 +193,20 @@ class MainFrame(wx.Frame):
         self.panel.SetSizer(self.vbox)
         self.Bind(wx.EVT_CLOSE, self.on_close)
         self.SetMinSize((400, 600))
+
+    def create_help(self):
+        self.help_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        
+        self.help_label = wx.StaticText(self.panel, label="Don't know what do do?")
+
+        self.help_url = wx.adv.HyperlinkCtrl(self.panel,
+                                         label="Look at the wiki.",
+                                         url="https://github.com/Dark42ed/fishtest-gui/wiki/Quickstart")
+
+        self.help_sizer.Add(self.help_label, 0, wx.ALL, 5)
+        self.help_sizer.Add(self.help_url, 0, wx.ALL, 5)
+
+        self.vbox.Add(self.help_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL)
 
     def create_msys_settings(self):
         self.msys_box = wx.StaticBox(self.panel, label="MSYS2")
