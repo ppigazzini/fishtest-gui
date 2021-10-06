@@ -351,7 +351,7 @@ class MainFrame(wx.Frame):
             self.monitor_thread = MonitorThread(self.log, self.proc.stdout, self.start_download_msys)
 
     def start_download_msys(self, evt):
-        # Download msys via chozcolatey
+        # Download msys via chocolatey
         self.proc = download_msys2()
         self.monitor_thread = MonitorThread(self.log, self.proc.stdout, self.install_packages)
         self.monitor_thread_error = MonitorThread(self.log, self.proc.stderr, lambda x: None)
