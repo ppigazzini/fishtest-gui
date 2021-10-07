@@ -196,7 +196,7 @@ class MainFrame(wx.Frame):
         self.create_help()
         self.create_msys_settings()
         self.create_fishtest_settings()
-        self.create_log()
+        self.create_test_data()
     
         self.panel.SetSizer(self.vbox)
         self.Bind(wx.EVT_CLOSE, self.on_close)
@@ -307,7 +307,7 @@ class MainFrame(wx.Frame):
 
         self.vbox.Add(self.fishtest_sizer, 0, self.padding, 5)
 
-    def create_log(self):
+    def create_test_data(self):
         self.test_stats_box = wx.StaticBox(self.panel, label="Test Stats")
         self.test_stats_sizer = wx.StaticBoxSizer(self.test_stats_box, wx.VERTICAL)
 
