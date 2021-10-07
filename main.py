@@ -8,29 +8,28 @@ import threading
 import urllib.request
 import zipfile
 import io
+from pathlib import Path
 
 FISHTEST_URL = "https://github.com/glinscott/fishtest/archive/refs/heads/master.zip"
-STORAGE_DIR = os.environ.get("LocalAppData")+"\\Fishtest\\"
-WORKER_DIR = STORAGE_DIR+"fishtest-master\\worker\\"
-CONFIG_PATH = STORAGE_DIR+"config.cfg"
-MSYS_DIR = STORAGE_DIR+"msys64/"
+STORAGE_DIR = Path(os.environ.get("LocalAppData")) / "Fishtest"
+WORKER_DIR = Path(STORAGE_DIR) / "fishtest-master" / "worker"
+CONFIG_PATH = Path(STORAGE_DIR) / "config.cfg"
+MSYS_DIR = Path(STORAGE_DIR) / "msys64"
 # So no window shows when packaged in pyinstaller
 STARTUPINFO = subprocess.STARTUPINFO()
 STARTUPINFO.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-if not os.path.isdir(STORAGE_DIR):
-    os.mkdir(STORAGE_DIR)
-if not os.path.isfile(CONFIG_PATH):
-    with open(CONFIG_PATH, "w") as f:
-        f.write(
-        """[Settings]
-msys_path =
-
-[Fishtest]
-username =
-password =
-concurrency = 1"""
+STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+if not CONFIG_PATH.is_file():
+    CONFIG_PATH.write_text(
+        "[Settings]\n"
+        "msys_path =\n\n"
+        "[Fishtest]\n"
+        "username =\n"
+        "password =\n"
+        "concurrency = 1"
         )
+
 
 config = configparser.ConfigParser()
 config.read(CONFIG_PATH)
@@ -55,7 +54,7 @@ def download_chocolatey():
     os.chdir(STORAGE_DIR)
 
     # Set choco installation dir
-    os.environ["ChocolateyInstall"] = STORAGE_DIR+"chocoportable"
+    os.environ["ChocolateyInstall"] = str(STORAGE_DIR / "chocoportable")
     # Install chocolatey
     try:
         return subprocess.Popen([
@@ -86,7 +85,7 @@ def download_msys2():
             "msys2",
             "-y",
             "--params",
-            "/InstallDir:"+MSYS_DIR
+            "/InstallDir:"+str(MSYS_DIR).replace("\\", "/")
             ], text=True,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -99,14 +98,15 @@ def download_msys2():
 def install_packages():
     olddir = os.getcwd()
     os.chdir(STORAGE_DIR)
-    with open(STORAGE_DIR+"install_packages.sh", "w") as f:
-        f.write("pacman -S --noconfirm unzip make gcc python3")
+    (STORAGE_DIR / "install_packages.sh").write_text(
+        "pacman -S --noconfirm unzip make mingw-w64-x86_64-gcc mingw-w64-x86_64-python3"
+     )
     try:
         return subprocess.Popen([
-            MSYS_DIR+"usr/bin/bash.exe",
+            str(MSYS_DIR / "usr/bin/bash.exe"),
             "-l",
             "-c",
-            STORAGE_DIR.replace("\\", "/")+"install_packages.sh"
+            str(STORAGE_DIR / "install_packages.sh").replace("\\", "/")
             ],
             stdout=subprocess.PIPE,
             stdin=subprocess.PIPE,
@@ -115,7 +115,7 @@ def install_packages():
             text=True,
             startupinfo=STARTUPINFO)
     finally:
-        config["Settings"]["msys_path"] = MSYS_DIR
+        config["Settings"]["msys_path"] = str(MSYS_DIR)
         save_config()
 
         os.chdir(olddir)
@@ -131,8 +131,8 @@ def download_fishtest():
 
 def run_fishtest():
     os.chdir(STORAGE_DIR)
-    msys_path = config["Settings"]["msys_path"]
-    os.environ["PATH"] = msys_path+"/mingw64/bin;"+msys_path+"/usr/bin;"+os.environ["PATH"]
+    msys_path = Path(config["Settings"]["msys_path"])
+    os.environ["PATH"] = str(msys_path / "mingw64/bin")+";"+str(msys_path / "usr/bin")+";"+os.environ["PATH"]
     return subprocess.Popen([
         "python3.exe",
         "-u",
@@ -148,6 +148,8 @@ def run_fishtest():
         text=True,
         bufsize=0,
         startupinfo=STARTUPINFO)
+
+
 
 class MonitorThread(threading.Thread):
     def __init__(self, text_ctrl, st, callback):
@@ -323,6 +325,8 @@ class MainFrame(wx.Frame):
 
         self.proc = run_fishtest()
         self.monitor_thread = MonitorThread(self.log, self.proc.stdout, self.stop_fishtest)
+        self.monitor_thread_error = MonitorThread(self.log, self.proc.stderr, lambda x: None)
+
     
     def stop_fishtest(self, event):
         self.monitor_thread.do_run = False
@@ -349,6 +353,7 @@ class MainFrame(wx.Frame):
             # There are 2 more functions because this relies on a callback system
             self.proc = download_chocolatey()
             self.monitor_thread = MonitorThread(self.log, self.proc.stdout, self.start_download_msys)
+            self.monitor_thread_error = MonitorThread(self.log, self.proc.stderr, lambda x: None)
 
     def start_download_msys(self, evt):
         # Download msys via chocolatey
@@ -362,6 +367,8 @@ class MainFrame(wx.Frame):
         # Install packages (gcc, python, unzip, wget)
         self.proc = install_packages()
         self.monitor_thread = MonitorThread(self.log, self.proc.stdout, self.done_msys)
+        self.monitor_thread_error = MonitorThread(self.log, self.proc.stderr, lambda x: None)
+
 
     def done_msys(self, evt):
         self.msys_input_field.SetValue(config["Settings"]["msys_path"])
