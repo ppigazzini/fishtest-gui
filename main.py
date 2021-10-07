@@ -152,8 +152,9 @@ def run_fishtest():
 
 
 class MonitorThread(threading.Thread):
-    def __init__(self, text_ctrl, st, callback):
+    def __init__(self, text_ctrl, st, callback, plcallback=None):
         super().__init__()
+        self.plcallback = plcallback
         self.callback = callback
         self.text_ctrl = text_ctrl
         self.st = st
@@ -168,10 +169,12 @@ class MonitorThread(threading.Thread):
                 break
             if not line.strip() == "":
                 wx.CallAfter(self.text_ctrl.write, line)
+                if self.plcallback:
+                    wx.CallAfter(self.plcallback, line)
             if not line: break
         try:
             self.callback("")
-        except RuntimeError:
+        except:
             pass
 
 
@@ -181,6 +184,10 @@ class MainFrame(wx.Frame):
         self.monitor_thread = None
         self.monitor_thread_error = None
         self.proc = None
+        self.games_played = 0
+        self.tests_completed = 0
+        self.session_games = 0
+        self.session_tasks = 0
         self.padding = wx.EXPAND|wx.ALL
 
         self.panel = wx.Panel(self)
@@ -301,11 +308,32 @@ class MainFrame(wx.Frame):
         self.vbox.Add(self.fishtest_sizer, 0, self.padding, 5)
 
     def create_log(self):
+        self.test_stats_box = wx.StaticBox(self.panel, label="Test Stats")
+        self.test_stats_sizer = wx.StaticBoxSizer(self.test_stats_box, wx.VERTICAL)
+
+        self.test_stats = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.session_tests_label = wx.StaticText(self.panel)
+        self.session_tests_label.Label = "Tests completed this session: 0"
+
+        self.session_games_label = wx.StaticText(self.panel)
+        self.session_games_label.Label = "Games played this session: 0"
+
+        self.test_stats.AddStretchSpacer(1)
+        self.test_stats.Add(self.session_tests_label, 1, wx.ALL|wx.ALIGN_CENTER, 5)
+        self.test_stats.AddStretchSpacer(1)
+        self.test_stats.Add(self.session_games_label, 1, wx.ALL|wx.ALIGN_CENTER, 5)
+        self.test_stats.AddStretchSpacer(1)
+        
         self.log_label = wx.StaticText(self.panel, label="Log")
         self.log = wx.TextCtrl(self.panel, style=wx.TE_READONLY|wx.TE_MULTILINE)
-        self.vbox.Add(self.log_label, 0, wx.LEFT, 5)
-        self.vbox.Add(self.log, 1, self.padding, 5)
 
+        self.test_stats_sizer.Add(self.test_stats, 0, self.padding, 5)
+        self.test_stats_sizer.Add(self.log_label, 0, wx.LEFT, 5)
+        self.test_stats_sizer.Add(self.log, 1, self.padding, 5)
+
+        self.vbox.Add(self.test_stats_sizer, 1, self.padding, 5)
+        
     def start_fishtest(self, event):
         if self.monitor_thread is not None:
             self.log.write("\n")
@@ -324,7 +352,7 @@ class MainFrame(wx.Frame):
             self.log.write("done\n")
 
         self.proc = run_fishtest()
-        self.monitor_thread = MonitorThread(self.log, self.proc.stdout, self.stop_fishtest)
+        self.monitor_thread = MonitorThread(self.log, self.proc.stdout, self.stop_fishtest, self.update_stats)
         self.monitor_thread_error = MonitorThread(self.log, self.proc.stderr, lambda x: None)
 
     
@@ -355,7 +383,7 @@ class MainFrame(wx.Frame):
             self.monitor_thread = MonitorThread(self.log, self.proc.stdout, self.start_download_msys)
             self.monitor_thread_error = MonitorThread(self.log, self.proc.stderr, lambda x: None)
 
-    def start_download_msys(self, evt):
+    def start_download_msys(self, *a, **k):
         # Download msys via chocolatey
         self.proc = download_msys2()
         self.monitor_thread = MonitorThread(self.log, self.proc.stdout, self.install_packages)
@@ -363,17 +391,25 @@ class MainFrame(wx.Frame):
         # Bypass 20 wait for non-admin
         self.proc.communicate(input="Y\n")
 
-    def install_packages(self, evt):
+    def install_packages(self, *a, **k):
         # Install packages (gcc, python, unzip, wget)
         self.proc = install_packages()
         self.monitor_thread = MonitorThread(self.log, self.proc.stdout, self.done_msys)
         self.monitor_thread_error = MonitorThread(self.log, self.proc.stderr, lambda x: None)
 
-
-    def done_msys(self, evt):
+    def done_msys(self, *a, **k):
         self.msys_input_field.SetValue(config["Settings"]["msys_path"])
         self.start_button.Enable()
         self.msys_download.Enable()
+
+    def update_stats(self, line):
+        if "Finished game " in line:
+            self.session_games += 1
+        if "Task exited" in line:
+            self.session_tasks += 1
+            
+        self.session_tests_label.Label = "Tests completed this session: "+str(self.session_tasks)
+        self.session_games_label.Label = "Games played this session: "+str(self.session_games)
 
 
 
