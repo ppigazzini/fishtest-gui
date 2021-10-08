@@ -27,7 +27,7 @@ if not CONFIG_PATH.is_file():
         "[Stats]\n"
         "games = 0\n"
         "tasks = 0\n\n"
-        "[fishtest]\n"
+        "[Fishtest]\n"
         "username =\n"
         "password =\n"
         "concurrency = 1"
