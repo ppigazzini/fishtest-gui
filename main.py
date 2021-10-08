@@ -8,6 +8,7 @@ import threading
 import urllib.request
 import zipfile
 import io
+import sys
 from pathlib import Path
 
 FISHTEST_URL = "https://github.com/glinscott/fishtest/archive/refs/heads/master.zip"
@@ -36,6 +37,16 @@ if not CONFIG_PATH.is_file():
 
 config = configparser.ConfigParser()
 config.read(CONFIG_PATH)
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 def save_config():
     with open(CONFIG_PATH, 'w') as f:
@@ -443,5 +454,7 @@ class MainFrame(wx.Frame):
 
 if __name__ == "__main__":
     app = wx.App()
-    MainFrame(None, title="Fishtest").Show()
+    frame = MainFrame(None, title="Fishtest")
+    frame.SetIcon(wx.Icon(resource_path("favicon.ico")))
+    frame.Show()
     app.MainLoop()
