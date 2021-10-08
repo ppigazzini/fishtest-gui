@@ -1,2 +1,2 @@
 # Fishtest-GUI
-A GUI for running fishtest
+A GUI wrapper around [fishtest](https://github.com/glinscott/fishtest)
