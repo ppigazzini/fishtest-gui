@@ -139,7 +139,7 @@ def run_fishtest():
     return subprocess.Popen([
         "python3.exe",
         "-u",
-        "fishtest-master/worker/worker.py",
+        str(WORKER_DIR / "worker.py"),
         config['Fishtest']['username'],
         config['Fishtest']['password'],
         "--concurrency",
