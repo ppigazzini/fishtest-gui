@@ -438,7 +438,8 @@ class MainFrame(wx.Frame):
                 
         self.session_tasks_label.Label = "Tasks completed this session: "+str(self.session_tasks)
         self.session_games_label.Label = "Games played this session: "+str(self.session_games)
-
+        self.total_games_label.Label = "Total games played: "+str(self.total_games)
+        self.total_tasks_label.Label = "Total tasks completed: "+str(self.total_tasks)
 
 
 if __name__ == "__main__":
