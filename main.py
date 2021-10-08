@@ -233,8 +233,8 @@ class MainFrame(wx.Frame):
         self.msys_download.Label = "Download MSYS2"
         self.msys_download.Bind(wx.EVT_BUTTON, self.do_download_msys)
 
-        # Until we get a stable solution in place
-        self.msys_download.Enable()
+        # If the auto-download ever stops working
+        #self.msys_download.Disable()
         
         self.msys_sizer.Add(self.msys_label, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 5)
         self.msys_sizer.Add(self.msys_input_field, 1, self.padding, 5)
