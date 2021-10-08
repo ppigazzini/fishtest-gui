@@ -24,7 +24,10 @@ if not CONFIG_PATH.is_file():
     CONFIG_PATH.write_text(
         "[Settings]\n"
         "msys_path =\n\n"
-        "[Fishtest]\n"
+        "[Stats]\n"
+        "games = 0\n"
+        "tasks = 0\n\n"
+        "[fishtest]\n"
         "username =\n"
         "password =\n"
         "concurrency = 1"
@@ -184,8 +187,8 @@ class MainFrame(wx.Frame):
         self.monitor_thread = None
         self.monitor_thread_error = None
         self.proc = None
-        self.games_played = 0
-        self.tests_completed = 0
+        self.total_games = config["Stats"]["games"]
+        self.total_tasks = config["Stats"]["tasks"]
         self.session_games = 0
         self.session_tasks = 0
         self.padding = wx.EXPAND|wx.ALL
@@ -196,7 +199,7 @@ class MainFrame(wx.Frame):
         self.create_help()
         self.create_msys_settings()
         self.create_fishtest_settings()
-        self.create_test_data()
+        self.create_task_data()
     
         self.panel.SetSizer(self.vbox)
         self.Bind(wx.EVT_CLOSE, self.on_close)
@@ -307,32 +310,51 @@ class MainFrame(wx.Frame):
 
         self.vbox.Add(self.fishtest_sizer, 0, self.padding, 5)
 
-    def create_test_data(self):
-        self.test_stats_box = wx.StaticBox(self.panel, label="Test Stats")
-        self.test_stats_sizer = wx.StaticBoxSizer(self.test_stats_box, wx.VERTICAL)
+    def create_task_data(self):
+        self.task_stats_box = wx.StaticBox(self.panel, label="Stats")
+        self.task_stats_sizer = wx.StaticBoxSizer(self.task_stats_box, wx.VERTICAL)
 
-        self.test_stats = wx.BoxSizer(wx.HORIZONTAL)
+        # Total task stats ---
+        
+        self.total_task_stats = wx.BoxSizer(wx.HORIZONTAL)
+        
+        self.total_tasks_label = wx.StaticText(self.panel)
+        self.total_tasks_label.Label = "Total tasks completed: 0"
 
-        self.session_tests_label = wx.StaticText(self.panel)
-        self.session_tests_label.Label = "Tests completed this session: 0"
+        self.total_games_label = wx.StaticText(self.panel)
+        self.total_games_label.Label = "Total games played: 0"
+
+        self.total_task_stats.AddStretchSpacer(1)
+        self.total_task_stats.Add(self.total_tasks_label, 1, wx.ALL|wx.ALIGN_CENTER, 5)
+        self.total_task_stats.AddStretchSpacer(1)
+        self.total_task_stats.Add(self.total_games_label, 1, wx.ALL|wx.ALIGN_CENTER, 5)
+        self.total_task_stats.AddStretchSpacer(1)
+
+        # Session task stats
+
+        self.session_task_stats = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.session_tasks_label = wx.StaticText(self.panel)
+        self.session_tasks_label.Label = "Tasks completed this session: 0"
 
         self.session_games_label = wx.StaticText(self.panel)
         self.session_games_label.Label = "Games played this session: 0"
 
-        self.test_stats.AddStretchSpacer(1)
-        self.test_stats.Add(self.session_tests_label, 1, wx.ALL|wx.ALIGN_CENTER, 5)
-        self.test_stats.AddStretchSpacer(1)
-        self.test_stats.Add(self.session_games_label, 1, wx.ALL|wx.ALIGN_CENTER, 5)
-        self.test_stats.AddStretchSpacer(1)
+        self.session_task_stats.AddStretchSpacer(1)
+        self.session_task_stats.Add(self.session_tasks_label, 1, wx.ALL|wx.ALIGN_CENTER, 5)
+        self.session_task_stats.AddStretchSpacer(1)
+        self.session_task_stats.Add(self.session_games_label, 1, wx.ALL|wx.ALIGN_CENTER, 5)
+        self.session_task_stats.AddStretchSpacer(1)
         
         self.log_label = wx.StaticText(self.panel, label="Log")
         self.log = wx.TextCtrl(self.panel, style=wx.TE_READONLY|wx.TE_MULTILINE)
 
-        self.test_stats_sizer.Add(self.test_stats, 0, self.padding, 5)
-        self.test_stats_sizer.Add(self.log_label, 0, wx.LEFT, 5)
-        self.test_stats_sizer.Add(self.log, 1, self.padding, 5)
+        self.task_stats_sizer.Add(self.total_task_stats, 0, self.padding, 5)
+        self.task_stats_sizer.Add(self.session_task_stats, 0, self.padding, 5)
+        self.task_stats_sizer.Add(self.log_label, 0, wx.LEFT, 5)
+        self.task_stats_sizer.Add(self.log, 1, self.padding, 5)
 
-        self.vbox.Add(self.test_stats_sizer, 1, self.padding, 5)
+        self.vbox.Add(self.task_stats_sizer, 1, self.padding, 5)
         
     def start_fishtest(self, event):
         if self.monitor_thread is not None:
@@ -405,10 +427,16 @@ class MainFrame(wx.Frame):
     def update_stats(self, line):
         if "Finished game " in line:
             self.session_games += 1
+            self.total_games += 1
+            config["Stats"]["games"] = self.total_games
+            save_config()
         if "Task exited" in line:
             self.session_tasks += 1
-            
-        self.session_tests_label.Label = "Tests completed this session: "+str(self.session_tasks)
+            self.total_tasks += 1
+            config["Stats"]["tasks"] = self.total_tasks
+            save_config()
+                
+        self.session_tasks_label.Label = "Tasks completed this session: "+str(self.session_tasks)
         self.session_games_label.Label = "Games played this session: "+str(self.session_games)
 
 
