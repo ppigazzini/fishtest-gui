@@ -187,8 +187,8 @@ class MainFrame(wx.Frame):
         self.monitor_thread = None
         self.monitor_thread_error = None
         self.proc = None
-        self.total_games = config["Stats"]["games"]
-        self.total_tasks = config["Stats"]["tasks"]
+        self.total_games = int(config["Stats"]["games"])
+        self.total_tasks = int(config["Stats"]["tasks"])
         self.session_games = 0
         self.session_tasks = 0
         self.padding = wx.EXPAND|wx.ALL
@@ -319,10 +319,10 @@ class MainFrame(wx.Frame):
         self.total_task_stats = wx.BoxSizer(wx.HORIZONTAL)
         
         self.total_tasks_label = wx.StaticText(self.panel)
-        self.total_tasks_label.Label = "Total tasks completed: 0"
+        self.total_tasks_label.Label = "Total tasks completed: "+str(self.total_tasks)
 
         self.total_games_label = wx.StaticText(self.panel)
-        self.total_games_label.Label = "Total games played: 0"
+        self.total_games_label.Label = "Total games played: "+str(self.total_games)
 
         self.total_task_stats.AddStretchSpacer(1)
         self.total_task_stats.Add(self.total_tasks_label, 1, wx.ALL|wx.ALIGN_CENTER, 5)
@@ -376,7 +376,6 @@ class MainFrame(wx.Frame):
         self.proc = run_fishtest()
         self.monitor_thread = MonitorThread(self.log, self.proc.stdout, self.stop_fishtest, self.update_stats)
         self.monitor_thread_error = MonitorThread(self.log, self.proc.stderr, lambda x: None)
-
     
     def stop_fishtest(self, event):
         self.monitor_thread.do_run = False
@@ -428,12 +427,12 @@ class MainFrame(wx.Frame):
         if "Finished game " in line:
             self.session_games += 1
             self.total_games += 1
-            config["Stats"]["games"] = self.total_games
+            config["Stats"]["games"] = str(self.total_games)
             save_config()
         if "Task exited" in line:
             self.session_tasks += 1
             self.total_tasks += 1
-            config["Stats"]["tasks"] = self.total_tasks
+            config["Stats"]["tasks"] = str(self.total_tasks)
             save_config()
                 
         self.session_tasks_label.Label = "Tasks completed this session: "+str(self.session_tasks)
