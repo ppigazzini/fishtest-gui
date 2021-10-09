@@ -235,7 +235,9 @@ class MainFrame(wx.Frame):
         self.msys_sizer = wx.StaticBoxSizer(self.msys_box, wx.HORIZONTAL)
         
         self.msys_input_field = wx.TextCtrl(self.panel)
-        self.msys_input_field.SetValue(find_msys2())
+        mpath = find_msys2()
+        if mpath:
+            self.msys_input_field.SetValue(mpath)
 
         self.msys_label = wx.StaticText(self.panel)
         self.msys_label.Label = "Path"
