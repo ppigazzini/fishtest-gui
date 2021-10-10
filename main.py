@@ -388,7 +388,7 @@ class MainFrame(wx.Frame):
 
         self.proc = run_fishtest()
         self.monitor_thread = MonitorThread(self.log, self.proc.stdout, self.stop_fishtest, self.update_stats)
-        self.monitor_thread_error = MonitorThread(self.log, self.proc.stderr, lambda x: None)
+        self.monitor_thread_error = MonitorThread(self.log, self.proc.stderr, lambda x: None, self.update_stats)
     
     def stop_fishtest(self, event):
         self.monitor_thread.do_run = False
