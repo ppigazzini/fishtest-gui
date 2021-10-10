@@ -15,7 +15,11 @@ FISHTEST_URL = "https://github.com/glinscott/fishtest/archive/refs/heads/master.
 STORAGE_DIR = Path(os.environ.get("LocalAppData")) / "Fishtest"
 WORKER_DIR = Path(STORAGE_DIR) / "fishtest-master" / "worker"
 CONFIG_PATH = Path(STORAGE_DIR) / "config.cfg"
-MSYS_DIR = Path(STORAGE_DIR) / "msys64"
+CHOCOLATEY_DIR = STORAGE_DIR / "chocoportable"
+try:
+    MSYS_DIR = Path(os.environ["ChocolateyToolsLocation"]) / "msys64"
+except KeyError:
+    MSYS_DIR = Path("C:/tools/msys64")
 # So no window shows when packaged in pyinstaller
 STARTUPINFO = subprocess.STARTUPINFO()
 STARTUPINFO.dwFlags |= subprocess.STARTF_USESHOWWINDOW
@@ -52,23 +56,12 @@ def save_config():
     with open(CONFIG_PATH, 'w') as f:
         config.write(f)
 
-def find_msys2():
-    def save_path(pth):
-        config['Settings']['msys_path'] = pth
-        save_config()
-    msys_config_path = config['Settings']['msys_path']
-    if os.path.isdir(msys_config_path):
-        return msys_config_path
-    elif os.path.isdir("C:\\tools\\msys64"):
-        save_path("C:\\tools\\msys64")
-        return "C:\\tools\\msys64"
-
 def download_chocolatey():
     olddir = os.getcwd()
     os.chdir(STORAGE_DIR)
 
     # Set choco installation dir
-    os.environ["ChocolateyInstall"] = str(STORAGE_DIR / "chocoportable")
+    os.environ["ChocolateyInstall"] = str(CHOCOLATEY_DIR)
     # Install chocolatey
     try:
         return subprocess.Popen([
@@ -77,11 +70,11 @@ def download_chocolatey():
             "-Command",
             "iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))"
             ],
-            stdout=subprocess.PIPE,
+            text=True,
             stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             bufsize=0,
-            text=True,
             startupinfo=STARTUPINFO)
     finally:
         os.chdir(olddir)
@@ -91,16 +84,16 @@ def download_msys2():
     olddir = os.getcwd()
     os.chdir(STORAGE_DIR)
 
-    # Install msys2 to MSYS_DIR
+    # Install msys2 to MSYS_DIR (usually C:\tools\msys64)
     try:
         return subprocess.Popen([
-            "choco",
-            "install",
+            str(CHOCOLATEY_DIR / "choco.exe"),
+            "upgrade",
             "msys2",
+            "-f",
             "-y",
-            "--params",
-            "/InstallDir:"+str(MSYS_DIR).replace("\\", "/")
-            ], text=True,
+            ],
+            text=True,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -112,21 +105,24 @@ def download_msys2():
 def install_packages():
     olddir = os.getcwd()
     os.chdir(STORAGE_DIR)
+
+    # Run bash script that installs packages
     (STORAGE_DIR / "install_packages.sh").write_text(
         "pacman -S --noconfirm unzip make mingw-w64-x86_64-gcc mingw-w64-x86_64-python3"
      )
     try:
+        # use bash.exe so we can get log
         return subprocess.Popen([
             str(MSYS_DIR / "usr/bin/bash.exe"),
             "-l",
             "-c",
             str(STORAGE_DIR / "install_packages.sh").replace("\\", "/")
             ],
-            stdout=subprocess.PIPE,
+            text=True,
             stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             bufsize=0,
-            text=True,
             startupinfo=STARTUPINFO)
     finally:
         config["Settings"]["msys_path"] = str(MSYS_DIR)
@@ -146,7 +142,9 @@ def download_fishtest():
 def run_fishtest():
     os.chdir(STORAGE_DIR)
     msys_path = Path(config["Settings"]["msys_path"])
+    # Add mingw bin to path like windows worker script
     os.environ["PATH"] = str(msys_path / "mingw64/bin")+";"+str(msys_path / "usr/bin")+";"+os.environ["PATH"]
+    # -u so there is no buffering in stdout
     return subprocess.Popen([
         "python3.exe",
         "-u",
@@ -164,7 +162,8 @@ def run_fishtest():
         startupinfo=STARTUPINFO)
 
 
-
+# A thread to read stdout and stderr from a process and run some callbacks
+# A little broken but works enough
 class MonitorThread(threading.Thread):
     def __init__(self, text_ctrl, st, callback, plcallback=None):
         super().__init__()
@@ -235,9 +234,10 @@ class MainFrame(wx.Frame):
         self.msys_sizer = wx.StaticBoxSizer(self.msys_box, wx.HORIZONTAL)
         
         self.msys_input_field = wx.TextCtrl(self.panel)
-        mpath = find_msys2()
-        if mpath:
-            self.msys_input_field.SetValue(mpath)
+        if config["Settings"]["msys_path"].strip():
+            self.msys_input_field.SetValue(config["Settings"]["msys_path"])
+        elif MSYS_DIR.is_dir():
+            self.msys_input_field.SetValue(str(MSYS_DIR))
 
         self.msys_label = wx.StaticText(self.panel)
         self.msys_label.Label = "Path"
@@ -370,6 +370,7 @@ class MainFrame(wx.Frame):
         self.vbox.Add(self.task_stats_sizer, 1, self.padding, 5)
         
     def start_fishtest(self, event):
+        # Just add some spacing between process logs
         if self.monitor_thread is not None:
             self.log.write("\n")
         self.start_button.Disable()
@@ -383,6 +384,8 @@ class MainFrame(wx.Frame):
 
         if not os.path.exists(WORKER_DIR):
             self.log.write("Downloading Fishtest...")
+            # Would like to run in a seperate thread later to prevent blocking
+            # but this works for now 
             download_fishtest()
             self.log.write("done\n")
 
@@ -403,6 +406,7 @@ class MainFrame(wx.Frame):
             self.monitor_thread_error.do_run = False
         if self.proc:
             self.proc.kill()
+            self.proc.wait()
         self.Destroy()
         
     def do_download_msys(self, event):
