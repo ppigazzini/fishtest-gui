@@ -108,7 +108,7 @@ def install_packages():
 
     # Run bash script that installs packages
     (STORAGE_DIR / "install_packages.sh").write_text(
-        "pacman -S --noconfirm unzip make mingw-w64-x86_64-gcc mingw-w64-x86_64-python3"
+        "pacman -S --needed --noconfirm unzip make mingw-w64-x86_64-gcc mingw-w64-x86_64-python3"
      )
     try:
         # use bash.exe so we can get log
